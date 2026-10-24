@@ -37,6 +37,15 @@ def test_drones_move_after_start():
     assert any(e["type"] == "takeoff" for e in after["events"])
 
 
+def test_play_requires_reports():
+    client.post("/api/sim/control", json={"action": "reset"})
+    response = client.post("/api/sim/control", json={"action": "start"})
+    assert response.status_code == 400
+    assert client.get("/api/state").json()["status"] == "setup"
+    client.put("/api/inputs", json=client.get("/api/static").json()["default_inputs"])
+    assert client.post("/api/sim/control", json={"action": "start"}).json()["status"] == "running"
+
+
 def test_sim_two_hours_finds_faults():
     reset_and_load_defaults()
     client.post("/api/sim/control", json={"action": "start", "speed": 600})

@@ -288,12 +288,13 @@ function Stepper({
   state: State | null
   onRemoveDead: (id: string) => void
 }) {
+  const { inputWarning } = useStore()
   // start positions computed for an older version of the inputs need a recompute
   const [startsFor, setStartsFor] = useState<string | null>(null)
   const inputs = state?.inputs
   const inputsKey = JSON.stringify(inputs ?? null)
   const live = !!state && state.status !== 'setup'
-  const hasInputs = !!inputs && inputs.reports.length + inputs.known_dead_segments.length > 0
+  const hasInputs = !!inputs?.reports.length
   const anyStarts = (state?.start_positions.length ?? 0) > 0
   // first time we see start positions (e.g. page reload) we assume they match the current inputs
   useEffect(() => {
@@ -328,6 +329,7 @@ function Stepper({
   const step3 = live ? 'active' : hasStarts ? 'active' : 'todo'
   const dead = inputs?.known_dead_segments ?? []
   const nReports = inputs?.reports.length ?? 0
+  const inputButton = `${btnGhost} ${inputWarning ? 'border-red-400 bg-red-50 text-red-700 ring-2 ring-red-400 shadow-[0_0_18px_rgba(239,68,68,0.3)]' : ''}`
 
   return (
     <Section title="Mission">
@@ -336,14 +338,15 @@ function Stepper({
           {!live && (
             <>
               <div className="flex gap-2">
-                <button className={btnGhost} disabled={!staticData} onClick={() => staticData && save(staticData.default_inputs)}>
+                <button className={inputButton} disabled={!staticData} onClick={() => staticData && save(staticData.default_inputs)}>
                   Load defaults
                 </button>
-                <label className={btnGhost}>
+                <label className={inputButton}>
                   Upload reports
                   <input type="file" accept=".geojson,.json,application/geo+json" className="hidden" onChange={onUpload} />
                 </label>
               </div>
+              {inputWarning && <p id="inputs-required-error" role="alert" className="text-xs font-medium text-red-600">Load defaults or upload reports before pressing Play.</p>}
               <div>
                 <div className="mb-1 text-xs text-slate-500">Known dead lines · click a line on the map</div>
                 <div className="flex flex-wrap gap-1.5">
@@ -375,7 +378,7 @@ function Stepper({
           {!live && hasStarts && <p className="text-xs text-slate-400">Hover a marker to see why it was chosen.</p>}
         </Step>
         <Step n={3} title="Run" state={step3} summary={live ? state?.status : undefined}>
-          {!live && hasStarts && (
+          {!live && hasStarts && hasInputs && (
             <button className={btn} onClick={() => postSimControl({ action: 'start' })}>
               Start mission
             </button>

@@ -79,5 +79,7 @@ def get_preset(name: str):
 
 @app.post("/api/sim/control", response_model=State)
 def sim_control(cmd: SimControl):
+    if cmd.action == "start" and engine.status == "setup" and not engine.inputs.reports:
+        raise HTTPException(400, "Load defaults or upload reports before pressing Play.")
     engine.control(cmd.action, cmd.speed)
     return engine.state()

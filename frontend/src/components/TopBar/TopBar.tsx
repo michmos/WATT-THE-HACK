@@ -1,4 +1,4 @@
-import { NavLink } from 'react-router'
+import { NavLink, useNavigate } from 'react-router'
 import { MOCK, postSimControl } from '../../api'
 import { formatClock } from '../../format'
 import { useStore } from '../../store'
@@ -7,12 +7,19 @@ const SPEEDS = [1, 10, 60, 300]
 
 
 export function TopBar() {
-  const { state } = useStore()
+  const { state, inputWarning, warnMissingInputs } = useStore()
+  const navigate = useNavigate()
   const status = state?.status ?? 'setup'
   const running = status === 'running'
 
-  const togglePlay = () =>
-    postSimControl({ action: running ? 'pause' : status === 'setup' ? 'start' : 'resume' })
+  const togglePlay = () => {
+    if (status === 'setup' && !state?.inputs.reports.length) {
+      warnMissingInputs()
+      navigate('/')
+      return
+    }
+    return postSimControl({ action: running ? 'pause' : status === 'setup' ? 'start' : 'resume' })
+  }
   // Speed changes keep the current run state. Backend only pauses when running and only resumes
   // when paused, so 'pause' is a no-op when already paused; 'resume' is safe while running or in setup
   // (avoids pausing right after Start when the last polled status is still 'setup').
@@ -50,7 +57,12 @@ export function TopBar() {
         <button
           onClick={togglePlay}
           title={running ? 'Pause' : 'Play'}
-          className="flex h-9 w-9 items-center justify-center rounded-full bg-brand text-white transition hover:bg-highlight hover:text-brand"
+          aria-invalid={inputWarning || undefined}
+          aria-describedby={inputWarning ? 'inputs-required-error' : undefined}
+          className={`flex h-9 w-9 items-center justify-center rounded-full text-white transition ${
+            inputWarning ? 'bg-red-600 ring-2 ring-red-400 shadow-[0_0_18px_rgba(239,68,68,0.55)] hover:bg-red-700'
+              : 'bg-brand hover:bg-highlight hover:text-brand'
+          }`}
         >
           {running ? (
             <svg viewBox="0 0 16 16" className="h-3.5 w-3.5 fill-current">
