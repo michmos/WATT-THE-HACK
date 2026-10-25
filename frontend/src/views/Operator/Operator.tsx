@@ -17,6 +17,7 @@ import { Map } from '../../components/Map'
 import { Section, SidebarLayout } from '../../components/Sidebar'
 import { useStore } from '../../store'
 import { DRONE_COLORS, Drones } from './Drones'
+import { DrawForm, DrawLayer, DrawnList, draftToReport, isDrawn, nextDrawnId, type Draft } from './DrawReports'
 import { Legend } from './Legend'
 import { RecommendationReport } from './RecommendationReport'
 import { RecommendationList, RecommendationMarkers, recommendations, type Rec } from './Recommendations'
@@ -60,6 +61,36 @@ function OperatorPage() {
     putInputs({ ...inputs, known_dead_segments: next })
   }
 
+  // operator-drawn areas: a draft is a new polygon (no id) or an existing drawn report being edited
+  const [draft, setDraft] = useState<Draft | null>(null)
+  const [drawError, setDrawError] = useState<string | null>(null)
+  const closeDraft = useCallback(() => setDraft(null), [])
+  const onDrawn = useCallback((polygon: Draft['polygon']) => {
+    setDrawError(null)
+    setDraft({ polygon, faultTypes: [], confidence: 0.5, text: '' })
+  }, [])
+  const editDrawn = (r: Report) => {
+    setDrawError(null)
+    setDraft({ id: r.report_id, polygon: r.polygon, faultTypes: r.fault_types, confidence: r.confidence, text: r.text })
+  }
+  const saveReports = (fn: (reports: Report[]) => Report[]) => {
+    const inputs = stateRef.current?.inputs
+    if (!inputs) return
+    putInputs({ ...inputs, reports: fn(inputs.reports) }).catch((e) => setDrawError(String(e)))
+  }
+  const saveDraft = (d: Draft) => {
+    saveReports((reports) =>
+      d.id
+        ? reports.map((r) => (r.report_id === d.id ? draftToReport(d, d.id) : r))
+        : [...reports, draftToReport(d, nextDrawnId(reports))],
+    )
+    setDraft(null)
+  }
+  const deleteDrawn = (id: string) => {
+    saveReports((reports) => reports.filter((r) => r.report_id !== id))
+    setDraft((d) => (d?.id === id ? null : d))
+  }
+
   const onClick = (e: MapLayerMouseEvent) => {
     const id = e.features?.[0]?.properties?.segment_id as string | undefined
     if (id && setup) toggleDead(id)
@@ -81,7 +112,15 @@ function OperatorPage() {
     <SidebarLayout
       sidebar={
         <>
-          <Stepper staticData={staticData} state={state} onRemoveDead={toggleDead} />
+          <Stepper
+            staticData={staticData}
+            state={state}
+            onRemoveDead={toggleDead}
+            drawnError={drawError}
+            editingId={draft?.id}
+            onEditDrawn={editDrawn}
+            onDeleteDrawn={(r) => deleteDrawn(r.report_id)}
+          />
           {state && !setup && (
             <>
               <Stats state={state} toAct={recs.filter((r) => !r.resolved && r.kind !== 'cleared').length} />
@@ -135,6 +174,7 @@ function OperatorPage() {
             </div>
           </Marker>
         ))}
+        <DrawLayer mapId={MAP_ID} enabled={setup} draft={setup ? draft : null} onDrawn={onDrawn} onCancel={closeDraft} onError={setDrawError} />
         <RecommendationMarkers recs={recs} onSelect={selectRec} />
         <Drones state={state} />
         {hover && (
@@ -161,6 +201,15 @@ function OperatorPage() {
           </Popup>
         )}
       </Map>
+      {setup && draft && (
+        <DrawForm
+          key={draft.id ?? 'new'}
+          draft={draft}
+          onSave={saveDraft}
+          onCancel={closeDraft}
+          onDelete={draft.id ? () => deleteDrawn(draft.id!) : undefined}
+        />
+      )}
       {selectedRec && state && !setup && (
         <RecommendationReport rec={selectedRec} state={state} staticData={staticData} onClose={closeReport} />
       )}
@@ -283,10 +332,18 @@ function Stepper({
   staticData,
   state,
   onRemoveDead,
+  drawnError,
+  editingId,
+  onEditDrawn,
+  onDeleteDrawn,
 }: {
   staticData: Static | null
   state: State | null
   onRemoveDead: (id: string) => void
+  drawnError: string | null
+  editingId?: string
+  onEditDrawn: (r: Report) => void
+  onDeleteDrawn: (r: Report) => void
 }) {
   const { inputWarning } = useStore()
   // start positions computed for an older version of the inputs need a recompute
@@ -304,6 +361,11 @@ function Stepper({
   const [error, setError] = useState<string | null>(null)
 
   const save = (next: OperatorInputs) => putInputs(next).catch((e) => setError(String(e)))
+  // "Load defaults" replaces the imported reports and dead lines but keeps the operator's drawn areas
+  const withDrawn = (defaults: OperatorInputs): OperatorInputs => ({
+    ...defaults,
+    reports: [...defaults.reports, ...(inputs?.reports ?? []).filter(isDrawn)],
+  })
 
   const onUpload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
@@ -338,7 +400,7 @@ function Stepper({
           {!live && (
             <>
               <div className="flex gap-2">
-                <button className={inputButton} disabled={!staticData} onClick={() => staticData && save(staticData.default_inputs)}>
+                <button className={inputButton} disabled={!staticData} onClick={() => staticData && save(withDrawn(staticData.default_inputs))}>
                   Load defaults
                 </button>
                 <label className={inputButton}>
@@ -346,7 +408,14 @@ function Stepper({
                   <input type="file" accept=".geojson,.json,application/geo+json" className="hidden" onChange={onUpload} />
                 </label>
               </div>
-              {inputWarning && <p id="inputs-required-error" role="alert" className="text-xs font-medium text-red-600">Load defaults or upload reports before pressing Play.</p>}
+              <p className="text-xs text-slate-400">Hold Ctrl + drag on the map to draw a polygon.</p>
+              {inputWarning && <p id="inputs-required-error" role="alert" className="text-xs font-medium text-red-600">Load defaults, upload reports or draw an area before pressing Play.</p>}
+              <DrawnList
+                reports={(inputs?.reports ?? []).filter(isDrawn)}
+                editingId={editingId}
+                onEdit={onEditDrawn}
+                onDelete={onDeleteDrawn}
+              />
               <div>
                 <div className="mb-1 text-xs text-slate-500">Known dead lines · click a line on the map</div>
                 <div className="flex flex-wrap gap-1.5">
@@ -365,7 +434,7 @@ function Stepper({
                   {!dead.length && <span className="text-xs text-slate-400">none</span>}
                 </div>
               </div>
-              {error && <p className="text-xs text-rose-600">{error}</p>}
+              {(error || drawnError) && <p className="text-xs text-rose-600">{error ?? drawnError}</p>}
             </>
           )}
         </Step>
