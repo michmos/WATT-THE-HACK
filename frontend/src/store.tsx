@@ -14,7 +14,18 @@ const StoreContext = createContext<Store>({ staticData: null, state: null, input
 export function StoreProvider({ children }: { children: ReactNode }) {
   const staticData = useStatic()
   const state = usePolling(500)
-  return <StoreContext.Provider value={{ staticData, state }}>{children}</StoreContext.Provider>
+  // set when Play is pressed without reports; cleared once reports are loaded
+  const [attemptedPlay, setAttemptedPlay] = useState(false)
+  const hasReports = (state?.inputs.reports.length ?? 0) > 0
+  const inputWarning = attemptedPlay && !hasReports && state?.status === 'setup'
+  useEffect(() => {
+    if (hasReports) setAttemptedPlay(false)
+  }, [hasReports])
+  return (
+    <StoreContext.Provider value={{ staticData, state, inputWarning, warnMissingInputs: () => setAttemptedPlay(true) }}>
+      {children}
+    </StoreContext.Provider>
+  )
 }
 
 export const useStore = () => useContext(StoreContext)
