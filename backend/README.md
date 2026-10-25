@@ -1,6 +1,6 @@
 # Backend
 
-FastAPI app: API (PLAN.md §3), on-demand simulation, planner. Everything in memory.
+FastAPI app: API, on-demand simulation, planner. Everything in memory.
 
 ## Run
 
@@ -82,7 +82,7 @@ uv run python scripts/export_mocks.py   # -> frontend/src/mocks/{static,state}.j
 
 - `app/models.py` Pydantic models = API contract
 - `app/data.py` loads `resources/`, splits lines into ~500 m cells, default operator inputs
-- `app/planner/` (never imports `sim/`): `Planner` interface + `DumbPlanner` (M1 baseline: nearest unchecked line) in `__init__.py`; `smart.py` `SmartPlanner` (default); `risk.py` prior per fault type + pure Bayes updates; `start_positions.py` greedy max-coverage; `missions.py` greedy routes, landing choice, dead-line hop; `recommend.py` §4.5 recommendations
+- `app/planner/` (never imports `sim/`): `Planner` interface + `DumbPlanner` (M1 baseline: nearest unchecked line) in `__init__.py`; `smart.py` `SmartPlanner` (default); `risk.py` prior per fault type + pure Bayes updates; `start_positions.py` greedy max-coverage; `missions.py` greedy routes, landing choice, dead-line hop; `recommend.py` recommendations
 - `app/sim/engine.py` sim stepping (1 s steps, wall time x speed, seeded), cell inspection, findings
 - `app/sim/sensors.py` sensor model: ground truth -> noisy `Observation` (air per cell, landed per cell, magnetometer)
 - `app/main.py` endpoints

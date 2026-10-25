@@ -1,4 +1,4 @@
-"""The scripted demo scenario (scenarios/demo.json, default at startup) tells the PLAN.md §7 story in 3 sim hours."""
+"""The scripted demo scenario (scenarios/demo.json, default at startup) tells the demo story in 3 sim hours."""
 
 from app.data import load_static
 from app.main import load_default_config

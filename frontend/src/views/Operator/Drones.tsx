@@ -1,5 +1,5 @@
 // Drones: HTML markers (heading arrow + battery ring) moved imperatively in a requestAnimationFrame
-// loop, interpolating between /state snapshots (PLAN.md §2 choice 5), plus a fading flown-path trail
+// loop, interpolating between /state snapshots, plus a fading flown-path trail
 // kept client-side. No React re-render per frame.
 import { useEffect, useRef } from 'react'
 import { Marker as MlMarker, type GeoJSONSource } from 'maplibre-gl'

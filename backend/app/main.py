@@ -1,4 +1,4 @@
-"""FastAPI app: all endpoints of PLAN.md §3.1. One in-memory Engine, stepped on every GET /api/state.
+"""FastAPI app: all endpoints. One in-memory Engine, stepped on every GET /api/state.
 
 Planner: SmartPlanner by default; `PLANNER=dumb uv run uvicorn ...` runs the M1 baseline for comparison.
 """

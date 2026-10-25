@@ -1,4 +1,4 @@
-"""Planner interface (PLAN.md §3.3) + a deliberately dumb placeholder strategy (M1).
+"""Planner interface + a deliberately dumb placeholder strategy (M1).
 
 The planner never imports app.sim. It only sees OperatorInputs, Events and Observations, plus the
 published sensor/drone specs (set_params).

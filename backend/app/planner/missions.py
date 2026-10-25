@@ -1,4 +1,4 @@
-"""Flight planning (PLAN.md §4.3): greedy routes on the line graph, landing choice, hop after a dead landing.
+"""Flight planning: greedy routes on the line graph, landing choice, hop after a dead landing.
 
 A flight = a sequence of *runs* (fly along a line from one cell boundary to another, inspecting every cell
 in between, at inspect speed), joined by straight transits (fast, inspect nothing), ending with a landing

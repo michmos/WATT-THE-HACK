@@ -6,7 +6,7 @@ import { useEffect, useState } from 'react'
 import type { Feature, FeatureCollection, LineString, Point, Polygon } from 'geojson'
 import type { components } from './api-types'
 
-// ---------- types (generated, PLAN.md §3.2) ----------
+// ---------- types (generated) ----------
 
 type S = components['schemas']
 type With<T, U> = Omit<T, keyof U> & U

@@ -1,4 +1,4 @@
-// Recommendations (PLAN.md §4.5): derived from `recommendation` events, shown pinned in the sidebar
+// Recommendations: derived from `recommendation` events, shown pinned in the sidebar
 // and as markers on the map. One entry per place (cell / segment / report area); the latest wins,
 // so "Needs confirmation" is replaced by "Send repair crew" once the evidence is strong enough.
 import { Marker } from 'react-map-gl/maplibre'

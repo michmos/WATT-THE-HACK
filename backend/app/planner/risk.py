@@ -1,4 +1,4 @@
-"""Risk prior (PLAN.md §4.2) + pure belief-update functions (§4.3).
+"""Risk prior + pure belief-update functions.
 
 The smart planner keeps one probability per (cell, fault type); cell risk = 1 - prod(1 - p_t).
 Weights and calibration are documented in ASSUMPTIONS.md ("Risk prior").
@@ -13,7 +13,7 @@ from app.models import FaultType, Report, Static
 
 ALL_TYPES: list[FaultType] = ["vegetation", "sag", "ice", "galloping", "hotspot", "broken_conductor"]
 
-# How strongly a report of a fault type points at that type actually being on a line (w(type) in §4.2).
+# How strongly a report of a fault type points at that type actually being on a line.
 W_TYPE: dict[str, float] = {"vegetation": 1.0, "sag": 0.7, "ice": 0.5, "galloping": 1.0, "hotspot": 0.9,
                             "broken_conductor": 0.6}
 N_REF = 10  # a report "points at" ~N_REF cells; bigger polygons spread the same evidence thinner
