@@ -100,8 +100,8 @@ class SmartPlanner(Planner):
         self.P = np.array([[pr[cid][t] for t in ALL_TYPES] for cid in self.net.cell_ids])
         self.inspected = ["none"] * self.n
         self.detected: list[set[int]] = [set() for _ in range(self.n)]
-        # confirmed = two detections of the type, or one confident landed detection (PLAN.md §4.5: crew only
-        # after a confirmed finding). Unconfirmed detections keep their value, so a second look is scheduled.
+        # confirmed = two detections of the type, or one confident landed detection (crew only after a confirmed
+        # finding). Unconfirmed detections keep their value, so a second look is scheduled.
         self.n_det = np.zeros((self.n, len(ALL_TYPES)), int)
         self.confirmed = np.zeros((self.n, len(ALL_TYPES)), bool)
         self.claim_cells: dict[str, set[int]] = {}

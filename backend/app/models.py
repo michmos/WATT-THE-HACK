@@ -1,4 +1,4 @@
-"""THE API contract (PLAN.md §3.2). Field names must stay identical to the plan.
+"""THE API contract. Field names are mirrored in the frontend types.
 
 Changing anything here = PR touching models.py + frontend/src/mocks + frontend/openapi.json
 (regenerate with `uv run python scripts/export_mocks.py`).

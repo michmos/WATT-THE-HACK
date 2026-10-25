@@ -37,8 +37,6 @@ npm install && npm run dev
 
 ## Architecture
 
-Details in [PLAN.md](PLAN.md).
-
 - One FastAPI process, everything in memory. The frontend fetches `GET /api/static` once and polls `GET /api/state` every 500 ms; it only renders and interpolates drone positions.
 - The sim advances on demand (each poll steps it by wall time × speed, 1 s steps), seeded so the same scenario gives the same run.
 - `backend/app/planner/` never imports `sim/`: it only receives observations (events), like real drones would send them.

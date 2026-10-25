@@ -1,6 +1,6 @@
 # Assumptions
 
-Draft values (see PLAN.md). Change them here when the team decides.
+Draft values. Change them here when the team decides.
 
 ## Drone
 - Transit speed 16 m/s (Nomad website). Inspection speed along a line: 10 m/s (assumed, so the camera can see).
@@ -21,7 +21,7 @@ Draft values (see PLAN.md). Change them here when the team decides.
 - Proposed 50 Hz magnetometer: one live/dead reading per segment per flight, correct with p = 0.9. The current sensor on landing always gives the truth.
 - Sensor and drone specs (`SimConfig.sensors`, `SimConfig.drone`) are treated as known to the planner (calibration data). Fault locations and dead lines are not.
 - False-positive rates in the default scenario are low (0.2–0.5 % per cell pass and fault type) so the log is not flooded; 0.1 % in the demo scenario.
-- Confirmation (PLAN.md §4.5 "after a confirmed finding"): a fault is confirmed by a second detection of the same type in the cell, or by one landed detection with confidence ≥ 0.8. "Send repair crew" only fires for confirmed faults; until then the cell shows "Needs confirmation" and keeps its value for the planner, so a second pass or landing is scheduled.
+- Confirmation: a fault is confirmed by a second detection of the same type in the cell, or by one landed detection with confidence ≥ 0.8. "Send repair crew" only fires for confirmed faults; until then the cell shows "Needs confirmation" and keeps its value for the planner, so a second pass or landing is scheduled.
 - Log: the first detection is logged as "possible …", the confirming one as "… confirmed". An unconfirmed detection that leaves the cell below 40 % risk (e.g. a weak false positive on a low-prior cell) is not logged at all; the belief update still happens.
 
 ## Grid / data
@@ -50,7 +50,7 @@ Report polygon = `location_area_coordinates`. Report text = `description`. Textu
 - Charging drones ask the planner for a route every 60 sim-s. Placeholder rule: take off once battery ≥ min(20 min, what the next full route needs incl. landing + 5 min reserve).
 - M1 routing (DumbPlanner): transit to the nearest line with uninspected cells (or a finding that needs confirmation), fly along it, repeat while the battery allows; end on a line not known to be dead (`p_live ≥ 0.5`), else add a hop to the nearest such line. Drones don't take lines another drone is currently flying.
 - A dead line (landing or operator) adds 0.2 risk to each of its cells (DumbPlanner only; SmartPlanner: see below).
-- Recommendations (§4.5) are emitted once per cell / segment / report: risk > 0.8 with a finding → send crew; 0.4–0.8 with a finding → needs confirmation; dead line fully inspected without finding → inspect from ground; all cells of a report area inspected and < 0.4 → area cleared.
+- Recommendations are emitted once per cell / segment / report: risk > 0.8 with a finding → send crew; 0.4–0.8 with a finding → needs confirmation; dead line fully inspected without finding → inspect from ground; all cells of a report area inspected and < 0.4 → area cleared.
 - Default ground truth (`backend/scenarios/default.json`): hidden dead line LINE_036; faults: vegetation on LINE_026 (report 02 area), hotspot on LINE_002 (report 05 area), galloping on LINE_039 (report 06 area), vegetation on LINE_035 (outside the specific report areas 02–06; report 01 covers the whole region; picked without the vegetation layer, which is not in the repo yet). Galloping is landed-only (`p_detect_air = 0`). Sensor probabilities there are guesses; hotspot assumes the extra thermal camera.
 
 ## Smart planner (M2, `backend/app/planner/`)
@@ -79,7 +79,7 @@ Belief = P(fault of type t in cell), with cell risk = 1 − Π(1 − p_t). All w
 - The 5 min reserve is kept even when landing on a line known to be live (simple, conservative).
 
 ## Demo scenario (`backend/scenarios/demo.json`, loaded at startup)
-Scripted for the PLAN.md §7 story; the ground truth was placed knowing where the planner flies, so it is a demonstration, not a benchmark (`compare_planners.py` runs seeds 1–10 for that).
+Scripted; the ground truth was placed knowing where the planner flies, so it is a demonstration, not a benchmark (`compare_planners.py` runs seeds 1–10 for that).
 - Seed 2 (seeds 3, 4, 5, 9, 11, 16 … give the full story too; in seeds where the camera misses F1 on its first pass the report 02 area is wrongly cleared).
 - Hidden dead line LINE_015: it lies in the report 03 protection sector, so "the line that tripped" is plausible. D2's first flight lands there.
 - F1 vegetation LINE_026#04 (report 02, as in default). F2 hotspot LINE_002#03 (report 05; moved one cell so the second-round flight covers it within 3 h). F3 galloping LINE_054#13 (report 06; the cell the stationed drone hops to first). F4 vegetation LINE_035#23: 100 % forest, in the storm, outside every report area. The old F4 cell (LINE_035#12) is only 15 % forest and ranked ~70th by the prior, so no drone reached it in 4 h. #23 is ranked 5th of 418 cells, almost entirely because of the vegetation layer.

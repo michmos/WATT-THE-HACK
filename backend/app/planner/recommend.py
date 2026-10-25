@@ -1,4 +1,4 @@
-"""When to act (PLAN.md §4.5): turn the planner's belief into recommendation messages.
+"""When to act: turn the planner's belief into recommendation messages.
 
 Pure function over CellState / SegmentState; the caller wraps the results into Events and passes
 `done` (keys already emitted) so every recommendation appears only once, and `confirmed`

@@ -1,4 +1,4 @@
-"""On-demand simulation (PLAN.md §2, choices 3+4).
+"""On-demand simulation.
 
 No background thread: every `advance()` (called on GET /api/state) steps the sim forward by
 `wall time since last call × speed` in fixed 1 s sim steps. Seeded RNG => same config, same run.

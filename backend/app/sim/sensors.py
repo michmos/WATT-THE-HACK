@@ -1,4 +1,4 @@
-"""Sensor model (PLAN.md §4.4). Knows the ground truth; turns it into noisy Observations.
+"""Sensor model. Knows the ground truth; turns it into noisy Observations.
 
 - Air pass along a cell: each true fault in the cell is seen with p_detect_air; every fault type
   can also give a false positive with p_false_positive. Fault types with p_detect_air = 0 are

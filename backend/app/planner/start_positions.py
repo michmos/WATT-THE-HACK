@@ -1,4 +1,4 @@
-"""Start positions (PLAN.md §4.3): greedy max-coverage with an overlap penalty.
+"""Start positions: greedy max-coverage with an overlap penalty.
 
 For each drone in turn: rank candidate cells (on lines with high p_live, never known-dead) by a cheap proxy
 (value reachable nearby), run the real flight planner from the best few, keep the one whose first flight
