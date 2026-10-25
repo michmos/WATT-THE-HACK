@@ -45,6 +45,7 @@ Report polygon = `location_area_coordinates`. Report text = `description`. Textu
 | 06 | conductor_motion_report | galloping, sag | 0.2 |
 
 ## Simulation (M1)
+- Play requires at least one loaded/uploaded report. An early Play click stays in setup and highlights Play and the input controls red; marking dead lines alone does not satisfy this prerequisite. The API enforces the same rule.
 - Sim time advances in 1 s steps; one HTTP poll advances `wall time × speed` (default speed 60×). Same `seed` ⇒ same run.
 - Charging drones ask the planner for a route every 60 sim-s. Placeholder rule: take off once battery ≥ min(20 min, what the next full route needs incl. landing + 5 min reserve).
 - M1 routing (DumbPlanner): transit to the nearest line with uninspected cells (or a finding that needs confirmation), fly along it, repeat while the battery allows; end on a line not known to be dead (`p_live ≥ 0.5`), else add a hop to the nearest such line. Drones don't take lines another drone is currently flying.

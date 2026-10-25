@@ -12,6 +12,7 @@ uv run uvicorn app.main:app --reload --port 8000
 API docs: http://localhost:8000/docs. Quick try:
 
 ```bash
+curl -s localhost:8000/api/static | uv run python -c 'import json,sys; print(json.dumps(json.load(sys.stdin)["default_inputs"]))' | curl -X PUT localhost:8000/api/inputs -H 'content-type: application/json' --data-binary @-
 curl -X POST localhost:8000/api/plan/start-positions
 curl -X POST localhost:8000/api/sim/control -H 'content-type: application/json' -d '{"action":"start","speed":60}'
 curl localhost:8000/api/state
