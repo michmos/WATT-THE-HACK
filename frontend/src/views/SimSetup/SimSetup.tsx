@@ -1,6 +1,6 @@
 // Simulation setup (/setup): edit the hidden ground truth (dead lines, faults) and sensor/drone params.
-// Edits stay in a local draft until "Save" (PUT /api/sim/config, which resets the sim).
-import { useEffect, useState, type ChangeEvent, type ReactNode } from 'react'
+// Every edit is saved immediately (PUT /api/sim/config, which resets the sim).
+import { useEffect, useRef, useState, type ChangeEvent, type KeyboardEvent, type ReactNode } from 'react'
 import { Marker, Popup, type MapLayerMouseEvent } from 'react-map-gl/maplibre'
 import type { Feature, Position } from 'geojson'
 import {
@@ -68,33 +68,58 @@ function nextFaultId(faults: SimConfig['faults']) {
 
 export function SimSetup() {
   const { staticData, state } = useStore()
-  const [saved, setSaved] = useState<SimConfig | null>(null)
-  const [draft, setDraft] = useState<SimConfig | null>(null)
+  const [config, setConfig] = useState<SimConfig | null>(null)
   const [presets, setPresets] = useState<string[]>([])
   const [popover, setPopover] = useState<{ segmentId: string; position: LonLat } | null>(null)
   const [faultType, setFaultType] = useState<FaultType>('vegetation')
   const [hover, setHover] = useState(false)
   const [msg, setMsg] = useState<string | null>(null)
+  const latest = useRef<SimConfig | null>(null) // newest config queued for saving
+  const savedJson = useRef('') // what the backend currently holds
+  const saveQueue = useRef(Promise.resolve())
 
   useEffect(() => {
     getSimConfig()
       .then((c) => {
-        setSaved(c)
-        setDraft(structuredClone(c))
+        savedJson.current = JSON.stringify(c)
+        setConfig(c)
       })
       .catch(() => setMsg('Could not load sim config'))
     getPresets().then(setPresets).catch(() => setPresets([]))
   }, [])
 
   const knownDead = state?.inputs.known_dead_segments ?? []
-  const dirty = !!draft && JSON.stringify(draft) !== JSON.stringify(saved)
-  const update = (fn: (c: SimConfig) => void) =>
-    setDraft((d) => {
-      if (!d) return d
-      const c = structuredClone(d)
-      fn(c)
-      return c
+  // Saves run one at a time; a save superseded by a newer one is skipped, so the latest config always wins.
+  const save = (next: SimConfig) => {
+    latest.current = next
+    saveQueue.current = saveQueue.current.then(async () => {
+      const json = JSON.stringify(next)
+      if (latest.current !== next || json === savedJson.current) return
+      try {
+        await putSimConfig(next)
+        savedJson.current = json
+        setMsg('Saved · simulation reset')
+      } catch (err) {
+        setMsg(`Save failed: ${(err as Error).message}`)
+      }
     })
+    return saveQueue.current
+  }
+  const commit = (next: SimConfig) => {
+    setConfig(next)
+    return save(next)
+  }
+  /** Apply an edit; discrete edits save immediately, number fields only locally until blur/Enter. */
+  const update = (fn: (c: SimConfig) => void, persist = true) => {
+    if (!config) return
+    const c = structuredClone(config)
+    fn(c)
+    return persist ? commit(c) : setConfig(c)
+  }
+  const numField = {
+    onBlur: () => config && save(config),
+    onKeyDown: (e: KeyboardEvent<HTMLInputElement>) => e.key === 'Enter' && e.currentTarget.blur(),
+  }
 
   const toggleHiddenDead = (id: string) =>
     update((c) => {
@@ -115,30 +140,18 @@ export function SimSetup() {
     setPopover({ segmentId: id, position: snapToLine(seg, [e.lngLat.lng, e.lngLat.lat]) })
   }
 
-  const save = async () => {
-    if (!draft) return
-    try {
-      await putSimConfig(draft)
-      setSaved(structuredClone(draft))
-      setMsg('Saved · simulation reset')
-    } catch (err) {
-      setMsg(`Save failed: ${(err as Error).message}`)
-    }
-  }
-
   const loadPreset = async (name: string) => {
     if (!name) return
     try {
-      setDraft(await getPreset(name))
-      setMsg(`Loaded preset "${name}" · not saved yet`)
+      await commit(await getPreset(name))
     } catch (err) {
       setMsg(`Could not load preset: ${(err as Error).message}`)
     }
   }
 
   const download = () => {
-    if (!draft) return
-    const url = URL.createObjectURL(new Blob([JSON.stringify(draft, null, 2)], { type: 'application/json' }))
+    if (!config) return
+    const url = URL.createObjectURL(new Blob([JSON.stringify(config, null, 2)], { type: 'application/json' }))
     const a = Object.assign(document.createElement('a'), { href: url, download: 'scenario.json' })
     a.click()
     URL.revokeObjectURL(url)
@@ -147,11 +160,10 @@ export function SimSetup() {
   const upload = async (e: ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0]
     e.target.value = ''
-    if (!file || !saved) return
+    if (!file || !config) return
     try {
       const c = JSON.parse(await file.text()) as Partial<SimConfig>
-      setDraft({ ...structuredClone(saved), ...c })
-      setMsg(`Loaded ${file.name} · not saved yet`)
+      await commit({ ...structuredClone(config), ...c })
     } catch (err) {
       setMsg(`Could not read ${file.name}: ${(err as Error).message}`)
     }
@@ -159,7 +171,7 @@ export function SimSetup() {
 
   const popSeg = popover?.segmentId
   const popKnownDead = !!popSeg && knownDead.includes(popSeg)
-  const popHiddenDead = !!popSeg && !!draft?.dead_segments.includes(popSeg)
+  const popHiddenDead = !!popSeg && !!config?.dead_segments.includes(popSeg)
 
   return (
     <SidebarLayout
@@ -179,7 +191,7 @@ export function SimSetup() {
               ))}
             </select>
             <div className="mt-2 flex gap-2">
-              <button className={btnGhost} onClick={download} disabled={!draft}>
+              <button className={btnGhost} onClick={download} disabled={!config}>
                 Download JSON
               </button>
               <label className={btnGhost}>
@@ -192,7 +204,7 @@ export function SimSetup() {
           <Section title="Dead lines">
             <p className="mb-1.5 text-xs text-slate-500">Click a line on the map to change it.</p>
             <div className="flex flex-wrap gap-1.5">
-              {draft?.dead_segments.map((s) => (
+              {config?.dead_segments.map((s) => (
                 <Chip key={s} color={HIDDEN_DEAD_COLOR} onRemove={() => toggleHiddenDead(s)}>
                   {s}
                 </Chip>
@@ -202,13 +214,13 @@ export function SimSetup() {
                   {s} · operator
                 </Chip>
               ))}
-              {!draft?.dead_segments.length && !knownDead.length && <span className="text-xs text-slate-400">none</span>}
+              {!config?.dead_segments.length && !knownDead.length && <span className="text-xs text-slate-400">none</span>}
             </div>
           </Section>
 
-          <Section title={`Faults (${draft?.faults.length ?? 0})`}>
+          <Section title={`Faults (${config?.faults.length ?? 0})`}>
             <ul className="space-y-0.5">
-              {draft?.faults.map((f, i) => (
+              {config?.faults.map((f, i) => (
                 <li key={f.fault_id + i} className="group flex items-center gap-2 rounded-md px-1 py-0.5 text-sm hover:bg-slate-50">
                   <FaultDot type={f.fault_type} />
                   <span className="text-slate-800">{FAULT_STYLE[f.fault_type].label}</span>
@@ -222,11 +234,11 @@ export function SimSetup() {
                   </button>
                 </li>
               ))}
-              {!draft?.faults.length && <li className="text-xs text-slate-400">none · click a line to add one</li>}
+              {!config?.faults.length && <li className="text-xs text-slate-400">none · click a line to add one</li>}
             </ul>
           </Section>
 
-          {draft && (
+          {config && (
             <Section title="Parameters">
               <Collapsible title="Sensors (detection probabilities)">
                 <table className="w-full text-xs">
@@ -239,8 +251,8 @@ export function SimSetup() {
                     </tr>
                   </thead>
                   <tbody>
-                    {FAULT_TYPES.filter((t) => draft.sensors[t]).map((t) => (
-                      <tr key={t} title={draft.sensors[t]?.sensor}>
+                    {FAULT_TYPES.filter((t) => config.sensors[t]).map((t) => (
+                      <tr key={t} title={config.sensors[t]?.sensor}>
                         <td className="py-0.5 pr-1 text-slate-600">{FAULT_STYLE[t].label}</td>
                         {(['p_detect_air', 'p_detect_landed', 'p_false_positive'] as const).map((k) => (
                           <td key={k} className="w-[3.25rem] px-0.5">
@@ -250,8 +262,9 @@ export function SimSetup() {
                               max={1}
                               step={0.001}
                               className={numInput}
-                              value={draft.sensors[t]![k]}
-                              onChange={(e) => update((c) => void (c.sensors[t]![k] = Number(e.target.value)))}
+                              value={config.sensors[t]![k]}
+                              onChange={(e) => update((c) => void (c.sensors[t]![k] = Number(e.target.value)), false)}
+                              {...numField}
                             />
                           </td>
                         ))}
@@ -269,8 +282,9 @@ export function SimSetup() {
                         type="number"
                         min={0}
                         className={numInput + ' w-16'}
-                        value={draft.drone[k]}
-                        onChange={(e) => update((c) => void (c.drone[k] = Number(e.target.value)))}
+                        value={config.drone[k]}
+                        onChange={(e) => update((c) => void (c.drone[k] = Number(e.target.value)), false)}
+                        {...numField}
                       />
                     </label>
                   ))}
@@ -279,8 +293,9 @@ export function SimSetup() {
                     <input
                       type="number"
                       className={numInput + ' w-16'}
-                      value={draft.seed}
-                      onChange={(e) => update((c) => void (c.seed = Math.round(Number(e.target.value))))}
+                      value={config.seed}
+                      onChange={(e) => update((c) => void (c.seed = Math.round(Number(e.target.value))), false)}
+                      {...numField}
                     />
                   </label>
                 </div>
@@ -289,21 +304,7 @@ export function SimSetup() {
           )}
 
           <div className="sticky bottom-0 -mx-4 mt-auto -mb-4 border-t border-slate-200 bg-white p-4">
-            <div className="flex gap-2">
-              <button
-                onClick={save}
-                disabled={!dirty}
-                className="flex-1 rounded-lg bg-brand px-3 py-2 text-sm font-medium text-white transition enabled:hover:bg-highlight enabled:hover:text-brand disabled:opacity-40"
-              >
-                Save scenario
-              </button>
-              {dirty && (
-                <button className={btnGhost + ' flex-none'} onClick={() => saved && setDraft(structuredClone(saved))}>
-                  Discard
-                </button>
-              )}
-            </div>
-            <p className="mt-1.5 text-xs text-slate-400">{msg ?? (dirty ? 'Unsaved changes · saving resets the simulation' : 'Saving resets the simulation')}</p>
+            <p className="text-xs text-slate-400">{msg ?? 'Edits save automatically · saving resets the simulation'}</p>
           </div>
         </>
       }
@@ -315,8 +316,8 @@ export function SimSetup() {
         onMouseLeave={() => setHover(false)}
         cursor={hover ? 'pointer' : 'grab'}
       >
-        <NetworkLayer dead={knownDead} hiddenDead={draft?.dead_segments ?? []} />
-        {draft?.faults.map((f, i) => (
+        <NetworkLayer dead={knownDead} hiddenDead={config?.dead_segments ?? []} />
+        {config?.faults.map((f, i) => (
           <Marker key={f.fault_id + i} longitude={f.position[0]} latitude={f.position[1]}>
             <div title={`${f.fault_id} · ${FAULT_STYLE[f.fault_type].label} · ${f.segment_id}`}>
               <FaultDot type={f.fault_type} big />
