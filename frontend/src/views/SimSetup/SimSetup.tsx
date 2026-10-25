@@ -228,7 +228,7 @@ export function SimSetup() {
 
           {draft && (
             <Section title="Parameters">
-              <Collapsible title="Sensors (detection probabilities)">
+              <Collapsible title="Fault detection probabilities">
                 <table className="w-full text-xs">
                   <thead className="text-slate-400">
                     <tr>
