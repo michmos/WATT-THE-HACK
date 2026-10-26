@@ -1,8 +1,14 @@
-# Storm Patrol
+# Nomadic drone hackathon
+**Find a blog post with a detailed explanation of the approach [here](https://michmos.github.io/posts/nomadic-hackathon)** 
 
-After a storm, five mobile sensor packages (30 min flight, 3 h charge, charging only on a live line) help a grid operator find faults. Storm Patrol turns vague storm reports, known dead lines and a vegetation layer into a **risk map** of the grid, picks where the five drones start, and then plans every flight: which line sections to inspect, where to land (and charge, or confirm a finding with landed sensors). Each observation updates the risk map with a Bayes update and the plan follows. The operator watches it live and gets **recommendations**: send a repair crew, needs confirmation, inspect from the ground, area cleared. A built-in simulation (ground-truth faults and dead lines the planner never sees) drives the demo.
+## Challenge
+A storm has just passed over a section of the Bavarian overhead grid. Some areas have lost power and the operator needs to know where to look first. The toolkit is five mobile sensor packages, basically drones that sit on power lines. Each one can fly for 30 minutes, then has to charge for 3 hours, and it can only charge on a live line.
 
-![Operator view](docs/screenshot.png)
+What we had to start from was a map of line segments and six fictional storm reports ("a flash was seen somewhere around here", "trees in the area", confidence: low to medium). The reports are vague and possibly wrong. The questions: what do you measure, where do the drones start, how do they move as information comes in, and when is the evidence strong enough to send a repair crew?
+
+
+https://github.com/user-attachments/assets/0970a3e1-9dc5-4b21-bb7a-d080fed83f09
+
 
 ## Quick start
 
@@ -14,26 +20,18 @@ make dev   # backend on :8000 + frontend on :5173, prefixed logs; Ctrl-C stops b
 
 Then open http://localhost:5173. Also: `make install`, `make backend`, `make frontend`, `make test`. Without make: `./dev.sh`. Other ports: `BACKEND_PORT=8001 FRONTEND_PORT=5174 make dev`.
 
-## Run
-
-Backend (Python, [uv](https://docs.astral.sh/uv/)):
-
-```bash
-cd backend
-uv run uvicorn app.main:app --port 8000
-```
-
-Frontend (Node 20+), then open http://localhost:5173:
-
-```bash
-cd frontend
-npm install && npm run dev
-```
 
 ## Two views
 
-- **Operator** (`/`): three steps. ① Inputs: load the default reports or upload GeoJSON, click lines to mark them known dead. ② Find start positions: hover a marker to see why it was chosen. ③ Start mission: drones fly live; the sidebar shows what each drone is doing, the recommendations to act on and the event log (click to fly the map there). Top bar: clock, play/pause, speed 1×–300×, reset. Benchmark: when every ground-truth fault has been found (first logged finding of its type on its cell) the sim pauses once and a banner shows the sim time plus a per-fault breakdown; press play to continue.
+- **Operator** (`/`): three steps. 
+  1. Inputs: upload reports in GeoJSON, draw other high risk areas and click lines to mark them known dead.
+  2. Find start positions: hover a marker to see why it was chosen.
+  3. Start mission: drones fly live; the sidebar shows what each drone is doing, the recommendations to act on and the event log.
+
 - **Simulation** (`/setup`): the hidden ground truth. Click a line to make it dead or add a fault, tune sensor detection probabilities and drone parameters, load/save scenario presets as JSON.
+
+
+https://github.com/user-attachments/assets/ad6a8c36-8903-4e40-a701-469691e8d1fb
 
 ## Architecture
 
@@ -50,9 +48,11 @@ All numbers and modelling choices (speeds, charging, sensor probabilities, repor
 ## Limitations
 
 - **Synthetic data**: the network, reports and the ground-truth faults are fictional; sensor detection probabilities and planner weights are hand-tuned guesses.
-- **Wind is not modelled**: no flight ban above 36 km/h gusts, no effect on speed or battery.
+- **Wind is not modeled**: no flight ban above 36 km/h gusts, no effect on speed or battery.
 - Lines are treated electrically independent: no power-flow or connectivity model, so a dead line only nudges its neighbours' risk.
 - Sensors are a simple per-cell probabilistic model (one air pass or one landing per cell), not real imagery.
 - Drones fly straight cross-country with no airspace, terrain or collision constraints.
-- The simulation is open-ended (the 4 h `scenario_window_hours` in the public config is unexplained).
-- The basemap is fetched from OpenFreeMap; offline the map falls back to a plain background.
+- The simulation is open-ended.
+
+## Hackathon scope
+Everything was built during the hackathon except: this README update, the operator drawing functionality and 2 buttons on the simulation view as well as unnecessary files have been removed 
